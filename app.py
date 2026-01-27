@@ -62,7 +62,7 @@ def analyze_comments(comments, lang_name):
     
     # ⚠️ Gemini 2.5は未リリースです。将来出たらここを 'gemini-2.5-flash' に変えてください。
     # 現在は最新の 1.5-flash を使用します。
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     comments_text = "\n".join(comments)
     
@@ -154,5 +154,6 @@ else:
                 st.link_button("👉 Stripe Checkout", checkout_session.url)
             except Exception as e:
                 st.error(f"Stripe Error: {e}")
+
 
 
