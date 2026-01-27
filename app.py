@@ -85,7 +85,7 @@ if st.button(current_ui["button"]):
                 """
                 
                 try:
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    model = genai.GenerativeModel('gemini-2.5-flash')
                     # 安全フィルター解除
                     safe = {
                         HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -103,4 +103,5 @@ if st.button(current_ui["button"]):
             else:
                 st.error("No comments found.")
     else:
+
         st.error("Please enter a valid YouTube URL.")
