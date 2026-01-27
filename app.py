@@ -17,7 +17,7 @@ except:
 
 # 👇 本番公開後に、あなたのStreamlitアプリのURLに書き換えてください
 # （デプロイ直後は自動で割り当てられる https://youtube-ai-app-xxxx.streamlit.app のようなURLになります）
-YOUR_DOMAIN = "http://localhost:8501" 
+YOUR_DOMAIN = "youtube-ai-app-erc7asvwqhbytnos9miwsm" 
 
 # ==========================================
 # 🌐 多言語設定 / Language Settings
@@ -154,3 +154,4 @@ else:
                 st.link_button("👉 Stripe Checkout", checkout_session.url)
             except Exception as e:
                 st.error(f"Stripe Error: {e}")
+
