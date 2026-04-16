@@ -1,6 +1,8 @@
-import { Mic, Sparkles, Zap } from "lucide-react";
+import Link from "next/link";
+import { Info, Mic, Sparkles, Zap } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,53 +10,37 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { GeneratedOutputCard } from "@/components/generated-output-card";
 import { HistorySection } from "@/components/history-section";
 import { SiteHeader } from "@/components/site-header";
 import { UploadPanel } from "@/components/upload-panel";
+import { listRecentGenerations } from "@/lib/db/generations";
+import { isOpenAIConfigured } from "@/lib/openai/env";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { getCurrentUser } from "@/lib/supabase/server";
 
-const SAMPLE_TRANSCRIPT = `【サンプル文字起こし】
-本日のテーマは「小さく始めるコンテンツマーケティング」です。
-最初から完璧を目指すのではなく、まずは週に1本の発信から…`;
+export default async function Home() {
+  const configuredSupabase = isSupabaseConfigured();
+  const user = configuredSupabase ? await getCurrentUser() : null;
+  const configuredOpenAI = isOpenAIConfigured();
+  const canSubmit = Boolean(user) && configuredSupabase && configuredOpenAI;
 
-const SAMPLE_NOTE = `# 小さく始めるコンテンツマーケティング
+  const disabledReason = !configuredSupabase
+    ? "Supabase の設定後に有効になります。"
+    : !user
+    ? "ログインすると文字起こしを実行できます。"
+    : !configuredOpenAI
+    ? "OPENAI_API_KEY を設定すると文字起こしを実行できます。"
+    : undefined;
 
-## はじめに
-コンテンツマーケティングは、最初から完璧を目指すほど継続が難しくなります。本記事では、忙しいクリエイターが続けやすい「小さく始める」ための考え方と、実践ステップを整理します。
+  const generations = user ? await listRecentGenerations(5) : [];
+  const monthlyCount = generations.filter((g) => {
+    const d = new Date(g.created_at);
+    const now = new Date();
+    return (
+      d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+    );
+  }).length;
 
-## 目次
-- まずは週1本から
-- プラットフォーム選びの優先順位
-- 効果測定の軽量フレーム
-
-## まずは週1本から
-"続けられる最小単位"を決めることが最初の仕事です。…`;
-
-const SAMPLE_LINE = `🎙️今日の配信、聴いてくれてありがとう！
-
-今回のテーマは
-「小さく始めるコンテンツマーケ📈」
-
-最初から完璧を目指すと続かない…！
-
-まずは週1本から✨
-フォーマットは後から整えればOK👌
-
-明日から試せる"最小単位"の話、
-ぜひ本編で聴いてみてね🎧
-`;
-
-const SAMPLE_X = `最初から完璧を目指すほど、発信は続かない。
-
-まずは "週1本" の最小単位から始めて、
-続けられる設計を手に入れよう。
-
-小さく始めるコンテンツマーケのコツを
-新しいエピソードで話しました🎧
-
-#コンテンツマーケ #クリエイター`;
-
-export default function Home() {
   return (
     <>
       <SiteHeader />
@@ -64,7 +50,7 @@ export default function Home() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <Badge variant="outline" className="mb-3 gap-1.5">
-                <Sparkles className="size-3" /> Phase 1 Preview
+                <Sparkles className="size-3" /> Phase 3 — Whisper 文字起こし
               </Badge>
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                 音声 1 本を、note・LINE・X 向けにまるごとリパーパス
@@ -76,74 +62,98 @@ export default function Home() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Stat icon={<Mic className="size-4" />} label="今月の生成数" value="12" />
-              <Stat icon={<Zap className="size-4" />} label="節約時間" value="8.2h" />
+              <Stat
+                icon={<Mic className="size-4" />}
+                label="今月の生成数"
+                value={user ? String(monthlyCount) : "—"}
+              />
+              <Stat
+                icon={<Zap className="size-4" />}
+                label="保存済み"
+                value={user ? String(generations.length) : "—"}
+              />
             </div>
           </div>
         </section>
 
-        {/* Upload + Transcript preview */}
+        {!configuredSupabase || !configuredOpenAI ? (
+          <Card className="mb-6 border-amber-500/40 bg-amber-500/5">
+            <CardHeader className="flex-row gap-3 space-y-0">
+              <span className="bg-amber-500/20 text-amber-700 dark:text-amber-300 flex size-8 items-center justify-center rounded-md">
+                <Info className="size-4" />
+              </span>
+              <div>
+                <CardTitle className="text-base">セットアップが未完了です</CardTitle>
+                <CardDescription>
+                  {!configuredSupabase && <>Supabase の接続情報が未設定です。</>}{" "}
+                  {!configuredOpenAI && <>OPENAI_API_KEY が未設定です。</>}{" "}
+                  <code className="bg-muted rounded px-1 py-0.5 text-xs">
+                    .env.local
+                  </code>{" "}
+                  に値を追加してから再起動してください。
+                </CardDescription>
+              </div>
+            </CardHeader>
+          </Card>
+        ) : null}
+
+        {/* Upload */}
         <section className="grid gap-6 lg:grid-cols-5">
           <div className="lg:col-span-3">
-            <UploadPanel />
+            {user ? (
+              <UploadPanel canSubmit={canSubmit} disabledReason={disabledReason} />
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">ログインが必要です</CardTitle>
+                  <CardDescription>
+                    文字起こしを実行するには、J-Creator AI Sync のアカウントでログインしてください。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2 sm:flex-row">
+                  <Button asChild>
+                    <Link href="/login">ログイン</Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/signup">新規登録</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
           <div className="lg:col-span-2">
             <Card className="h-full">
               <CardHeader>
-                <CardTitle className="text-lg">文字起こし (プレビュー)</CardTitle>
+                <CardTitle className="text-lg">パイプラインの流れ</CardTitle>
                 <CardDescription>
-                  Whisper で生成された日本語トランスクリプトがここに表示されます。
+                  アップロード後、以下のステップで処理が進みます。
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <pre className="bg-muted text-muted-foreground max-h-64 overflow-y-auto rounded-md p-4 text-xs leading-6 whitespace-pre-wrap">
-                  {SAMPLE_TRANSCRIPT}
-                </pre>
+              <CardContent className="text-muted-foreground text-sm leading-7">
+                <ol className="list-inside list-decimal space-y-1">
+                  <li>音声ファイルをサーバーへ送信（最大 25MB）</li>
+                  <li>OpenAI Whisper で日本語トランスクリプト生成</li>
+                  <li>結果を Supabase に保存し、詳細ページへ遷移</li>
+                  <li>
+                    <span className="text-foreground">Phase 4:</span> note / LINE / X
+                    向けに並行リパーパス（準備中）
+                  </li>
+                </ol>
               </CardContent>
             </Card>
           </div>
         </section>
 
-        {/* Generated outputs */}
-        <section className="mt-10 space-y-4">
-          <div className="flex items-end justify-between">
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight">
-                プラットフォーム別アウトプット
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                それぞれ手動で調整し、ワンクリックでコピーできます。
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-6 lg:grid-cols-3">
-            <GeneratedOutputCard
-              platform="note"
-              title="note"
-              subtitle="見出し・目次つき長文ブログ形式"
-              charHint="推奨: 1,500〜3,000字"
-              initialContent={SAMPLE_NOTE}
-            />
-            <GeneratedOutputCard
-              platform="line"
-              title="LINE 公式"
-              subtitle="吹き出しに馴染む親しみやすい短文＆絵文字"
-              charHint="推奨: 300字以内"
-              initialContent={SAMPLE_LINE}
-            />
-            <GeneratedOutputCard
-              platform="x"
-              title="X (旧Twitter)"
-              subtitle="フック＆ハッシュタグ付き140字ポスト"
-              charHint="上限: 140字"
-              initialContent={SAMPLE_X}
-            />
-          </div>
-        </section>
-
         {/* History */}
         <section className="mt-10">
-          <HistorySection />
+          <HistorySection
+            items={generations}
+            emptyState={
+              !user ? (
+                <p>ログインすると、ご自身の生成履歴がここに表示されます。</p>
+              ) : undefined
+            }
+          />
         </section>
 
         <footer className="text-muted-foreground mt-16 flex flex-col items-center gap-1 pb-8 text-xs">

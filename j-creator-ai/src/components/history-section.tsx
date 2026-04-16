@@ -1,4 +1,5 @@
-import { FileAudio, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, FileAudio } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,41 +10,31 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import type { ContentGeneration } from "@/lib/db/generations";
 
-type HistoryItem = {
-  id: string;
-  filename: string;
-  createdAt: string;
-  duration: string;
-  platforms: Array<"note" | "LINE" | "X">;
+type Props = {
+  items: ContentGeneration[];
+  /** Optional CTA shown when the list is empty. */
+  emptyState?: React.ReactNode;
 };
 
-const MOCK_HISTORY: HistoryItem[] = [
-  {
-    id: "1",
-    filename: "ep42_朝活ラジオ.m4a",
-    createdAt: "2026/04/14 07:42",
-    duration: "28:11",
-    platforms: ["note", "LINE", "X"],
-  },
-  {
-    id: "2",
-    filename: "youtube_新商品発表.mp3",
-    createdAt: "2026/04/13 21:08",
-    duration: "14:36",
-    platforms: ["note", "X"],
-  },
-  {
-    id: "3",
-    filename: "podcast_ゲスト対談_vol03.mp3",
-    createdAt: "2026/04/12 18:20",
-    duration: "52:04",
-    platforms: ["note", "LINE", "X"],
-  },
-];
+function formatJaDateTime(iso: string) {
+  const d = new Date(iso);
+  return new Intl.DateTimeFormat("ja-JP", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(d);
+}
 
-export function HistorySection() {
+function completedPlatforms(item: ContentGeneration) {
+  const out: Array<"note" | "LINE" | "X"> = [];
+  if (item.note_content) out.push("note");
+  if (item.line_content) out.push("LINE");
+  if (item.x_content) out.push("X");
+  return out;
+}
+
+export function HistorySection({ items, emptyState }: Props) {
   return (
     <Card>
       <CardHeader>
@@ -53,40 +44,55 @@ export function HistorySection() {
         </CardDescription>
       </CardHeader>
       <CardContent className="px-0">
-        <ul className="divide-border divide-y">
-          {MOCK_HISTORY.map((item) => (
-            <li
-              key={item.id}
-              className="hover:bg-accent/40 flex items-center gap-4 px-6 py-4 transition-colors"
-            >
-              <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
-                <FileAudio className="size-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{item.filename}</p>
-                <p className="text-muted-foreground mt-0.5 text-xs">
-                  {item.createdAt} ・ {item.duration}
-                </p>
-              </div>
-              <div className="hidden gap-1.5 sm:flex">
-                {item.platforms.map((p) => (
-                  <Badge key={p} variant="secondary">
-                    {p}
-                  </Badge>
-                ))}
-              </div>
-              <Button variant="ghost" size="icon" aria-label="開く">
-                <ChevronRight className="size-4" />
-              </Button>
-            </li>
-          ))}
-        </ul>
-        <Separator />
-        <div className="px-6 pt-4">
-          <Button variant="outline" className="w-full">
-            すべての履歴を見る
-          </Button>
-        </div>
+        {items.length === 0 ? (
+          <div className="text-muted-foreground px-6 py-10 text-center text-sm">
+            {emptyState ?? (
+              <p>まだ生成履歴がありません。音声をアップロードして始めましょう。</p>
+            )}
+          </div>
+        ) : (
+          <ul className="divide-border divide-y">
+            {items.map((item) => {
+              const platforms = completedPlatforms(item);
+              return (
+                <li key={item.id}>
+                  <Link
+                    href={`/generations/${item.id}`}
+                    className="hover:bg-accent/40 flex items-center gap-4 px-6 py-4 transition-colors"
+                  >
+                    <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-md">
+                      <FileAudio className="size-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {item.original_filename ?? "無題のソース"}
+                      </p>
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        {formatJaDateTime(item.created_at)}
+                      </p>
+                    </div>
+                    <div className="hidden gap-1.5 sm:flex">
+                      {platforms.length === 0 ? (
+                        <Badge variant="outline">文字起こしのみ</Badge>
+                      ) : (
+                        platforms.map((p) => (
+                          <Badge key={p} variant="secondary">
+                            {p}
+                          </Badge>
+                        ))
+                      )}
+                    </div>
+                    <Button variant="ghost" size="icon" aria-label="開く" asChild>
+                      <span>
+                        <ChevronRight className="size-4" />
+                      </span>
+                    </Button>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );
