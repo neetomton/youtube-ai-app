@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { logout } from "@/app/actions/auth";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { getCurrentUser } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const user = isSupabaseConfigured() ? await getCurrentUser() : null;
+
   return (
     <header className="border-border/80 bg-background/80 sticky top-0 z-40 w-full border-b backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -42,10 +47,32 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
-            ログイン
-          </Button>
-          <Button size="sm">無料で始める</Button>
+          {user ? (
+            <>
+              <span className="text-muted-foreground hidden max-w-[16ch] truncate text-sm sm:inline-block">
+                {user.email}
+              </span>
+              <form action={logout}>
+                <Button type="submit" variant="ghost" size="sm">
+                  ログアウト
+                </Button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className="hidden sm:inline-flex"
+              >
+                <Link href="/login">ログイン</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/signup">無料で始める</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>
