@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Copy, Pencil, Save } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { Check, Copy, Loader2, Pencil, Save } from "lucide-react";
 
+import { saveEditedContent } from "@/app/actions/generate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +49,10 @@ type GeneratedOutputCardProps = {
   subtitle: string;
   charHint?: string;
   initialContent: string;
+  /** When provided, editing persists to DB via saveEditedContent action. */
+  generationId?: string;
+  /** Whether the card is backed by a real row (vs. placeholder). */
+  editable?: boolean;
 };
 
 export function GeneratedOutputCard({
@@ -56,11 +61,20 @@ export function GeneratedOutputCard({
   subtitle,
   charHint,
   initialContent,
+  generationId,
+  editable = true,
 }: GeneratedOutputCardProps) {
   const [content, setContent] = useState(initialContent);
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
   const styles = PLATFORM_STYLES[platform];
+
+  // Keep content in sync when the server re-renders with new generated text.
+  useEffect(() => {
+    setContent(initialContent);
+  }, [initialContent]);
 
   async function copy() {
     try {
@@ -70,6 +84,31 @@ export function GeneratedOutputCard({
     } catch {
       /* no-op */
     }
+  }
+
+  function onToggleEdit() {
+    if (!editing) {
+      setEditing(true);
+      return;
+    }
+    // Editing -> Save
+    if (!generationId) {
+      setEditing(false);
+      return;
+    }
+    setSaveError(null);
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("id", generationId);
+      fd.set("platform", platform);
+      fd.set("content", content);
+      const result = await saveEditedContent({}, fd);
+      if (result.error) {
+        setSaveError(result.error);
+      } else {
+        setEditing(false);
+      }
+    });
   }
 
   return (
@@ -88,9 +127,12 @@ export function GeneratedOutputCard({
               variant="ghost"
               size="icon"
               aria-label={editing ? "保存" : "編集"}
-              onClick={() => setEditing((v) => !v)}
+              onClick={onToggleEdit}
+              disabled={!editable || pending}
             >
-              {editing ? (
+              {pending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : editing ? (
                 <Save className="size-4" />
               ) : (
                 <Pencil className="size-4" />
@@ -101,6 +143,7 @@ export function GeneratedOutputCard({
               size="icon"
               aria-label="クリップボードにコピー"
               onClick={copy}
+              disabled={!content || content.length === 0}
             >
               {copied ? (
                 <Check className="size-4 text-emerald-500" />
@@ -121,6 +164,9 @@ export function GeneratedOutputCard({
             editing && cn("ring-2", styles.ring),
           )}
         />
+        {saveError ? (
+          <p className="text-destructive text-xs">{saveError}</p>
+        ) : null}
         <div className="text-muted-foreground flex items-center justify-between text-xs">
           <span>{content.length.toLocaleString("ja-JP")} 文字</span>
           {charHint ? <span>{charHint}</span> : null}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileAudio, Sparkles } from "lucide-react";
 
+import { GenerateTrigger } from "@/components/generate-trigger";
 import { GeneratedOutputCard } from "@/components/generated-output-card";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +14,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getGenerationById } from "@/lib/db/generations";
+import { isOpenAIConfigured } from "@/lib/openai/env";
 
 export const metadata = {
   title: "文字起こし結果 | J-Creator AI Sync",
 };
+
+// Vercel Hobby プランの上限 (60 秒) に合わせる。Pro プランで伸ばす場合は
+// vercel.json の functions.maxDuration を最大 300 に変更する。
+export const maxDuration = 60;
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -46,6 +52,10 @@ export default async function GenerationPage({ params }: PageProps) {
     x_content,
     created_at,
   } = generation;
+
+  const hasAllOutputs = Boolean(note_content && line_content && x_content);
+  const hasAnyOutput = Boolean(note_content || line_content || x_content);
+  const canGenerate = Boolean(transcription && transcription.length > 0);
 
   return (
     <>
@@ -99,27 +109,60 @@ export default async function GenerationPage({ params }: PageProps) {
         </section>
 
         <section className="space-y-4">
-          <div className="flex items-end justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold tracking-tight">
                 プラットフォーム別アウトプット
               </h2>
               <p className="text-muted-foreground text-sm">
-                note / LINE 公式 / X 向けの最適化は Phase 4 で有効化されます。
+                note / LINE 公式 / X 向けにトーン・文字数を最適化して同時生成します。
               </p>
             </div>
             <Badge variant="outline" className="gap-1.5">
-              <Sparkles className="size-3" /> Phase 4 に続く
+              <Sparkles className="size-3" /> GPT-4o ベース
             </Badge>
           </div>
+
+          {canGenerate ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {hasAllOutputs
+                    ? "再生成する"
+                    : hasAnyOutput
+                    ? "未生成のものを含めて再実行"
+                    : "3 プラットフォーム向けに生成"}
+                </CardTitle>
+                <CardDescription>
+                  クリックすると note / LINE / X を並行で生成します。既存の内容は上書きされます。
+                  {!isOpenAIConfigured()
+                    ? "（OPENAI_API_KEY を .env.local に設定してください）"
+                    : null}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <GenerateTrigger
+                  generationId={id}
+                  label={
+                    hasAnyOutput ? "もう一度生成する" : "3 プラットフォーム向けに生成"
+                  }
+                  disabled={!isOpenAIConfigured()}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+
           <div className="grid gap-6 lg:grid-cols-3">
             <GeneratedOutputCard
               platform="note"
               title="note"
               subtitle="見出し・目次つき長文ブログ形式"
               charHint="推奨: 1,500〜3,000字"
+              generationId={id}
+              editable={Boolean(note_content)}
               initialContent={
-                note_content ?? "(Phase 4 で note 向け本文を生成します)"
+                note_content ??
+                "(上のボタンから生成するか、文字起こしを先に完了してください)"
               }
             />
             <GeneratedOutputCard
@@ -127,8 +170,11 @@ export default async function GenerationPage({ params }: PageProps) {
               title="LINE 公式"
               subtitle="吹き出しに馴染む親しみやすい短文＆絵文字"
               charHint="推奨: 300字以内"
+              generationId={id}
+              editable={Boolean(line_content)}
               initialContent={
-                line_content ?? "(Phase 4 で LINE 向け本文を生成します)"
+                line_content ??
+                "(上のボタンから生成するか、文字起こしを先に完了してください)"
               }
             />
             <GeneratedOutputCard
@@ -136,8 +182,11 @@ export default async function GenerationPage({ params }: PageProps) {
               title="X (旧Twitter)"
               subtitle="フック＆ハッシュタグ付き140字ポスト"
               charHint="上限: 140字"
+              generationId={id}
+              editable={Boolean(x_content)}
               initialContent={
-                x_content ?? "(Phase 4 で X 向け本文を生成します)"
+                x_content ??
+                "(上のボタンから生成するか、文字起こしを先に完了してください)"
               }
             />
           </div>
