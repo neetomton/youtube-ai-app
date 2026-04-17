@@ -27,22 +27,16 @@ export async function SiteHeader() {
 
         <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
           <Link
-            href="/dashboard"
+            href="/"
             className="transition-colors hover:text-foreground"
           >
             ダッシュボード
           </Link>
           <Link
-            href="/history"
+            href="/#history"
             className="transition-colors hover:text-foreground"
           >
             履歴
-          </Link>
-          <Link
-            href="/settings"
-            className="transition-colors hover:text-foreground"
-          >
-            設定
           </Link>
         </nav>
 

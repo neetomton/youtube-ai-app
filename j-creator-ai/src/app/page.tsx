@@ -134,10 +134,7 @@ export default async function Home() {
                   <li>音声ファイルをサーバーへ送信（最大 25MB）</li>
                   <li>OpenAI Whisper で日本語トランスクリプト生成</li>
                   <li>結果を Supabase に保存し、詳細ページへ遷移</li>
-                  <li>
-                    <span className="text-foreground">Phase 4:</span> note / LINE / X
-                    向けに並行リパーパス（準備中）
-                  </li>
+                  <li>note / LINE / X 向けに AI が並行リパーパス</li>
                 </ol>
               </CardContent>
             </Card>
@@ -145,7 +142,7 @@ export default async function Home() {
         </section>
 
         {/* History */}
-        <section className="mt-10">
+        <section id="history" className="mt-10">
           <HistorySection
             items={generations}
             emptyState={
